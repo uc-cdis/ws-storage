@@ -38,7 +38,6 @@ func main() {
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	default:
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
-
 	}
 
 	log.Info().Msg("whatever")

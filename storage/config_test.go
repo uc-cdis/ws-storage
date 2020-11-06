@@ -15,7 +15,7 @@ func TestLoadConfig(t *testing.T) {
 		t.Error(fmt.Sprintf("config did not load the expected bucket: %v", config.Bucket))
 		return
 	}
-	if config.BucketPrefix != "frickjack/test" {
+	if config.BucketPrefix != "ws-storage-testsuite" {
 		t.Error(fmt.Sprintf("config did not load the expected bucket prefix: %v", config.BucketPrefix))
 		return
 	}

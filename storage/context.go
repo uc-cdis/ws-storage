@@ -7,6 +7,8 @@ type SessionContext struct {
 }
 
 func NewSessionContext(user string) (cx *SessionContext) {
-	cx = nil
+	cx = &SessionContext {
+		User: user,
+	};
 	return cx
 }
