@@ -11,8 +11,6 @@ type Config struct {
 	Bucket             string            `json:"bucket"`
 	BucketPrefix       string            `json:"bucketprefix"`
 	LogLevel           string            `json:"loglevel"`
-	AwsRegion          string            `json:"awsregion"`
-	AwsCredsSource     string            `json:"awsregion"`
 }
 
 
