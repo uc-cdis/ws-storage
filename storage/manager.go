@@ -13,7 +13,7 @@ import (
 )
 
 
-type Manager struct {
+type SimpleManager struct {
 	config   *Config
 	s3client *s3.S3
 }
@@ -32,17 +32,24 @@ type ListResult struct {
 	Prefixes   []string
 }
 
+type Manager interface {
+	List(cx *SessionContext, workspaceIn string, prefix string, page string) (*ListResult, error)
+	UploadUrl(cx *SessionContext, workspaceIn string, key string) (string, error)
+	DownloadUrl(cx *SessionContext, workspaceIn string, key string) (string, error)
+	DeleteObject(cx *SessionContext, workspaceIn string, key string) (error)
+}
+
 //---------------------------------------
 
 // NewManager makes a new manager with the given configuration
-func NewManager(config *Config)(mgr *Manager, err error) {
+func NewManager(config *Config)(mgr Manager, err error) {
 	sess, err := session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 	})
 
 	// Create S3 service client
 	s3client := s3.New(sess)
-	mgr = &Manager{
+	mgr = &SimpleManager{
 		config: config,
 		s3client: s3client,
 	};
@@ -79,8 +86,8 @@ func MakeS3Path(bucketPrefix, user, userPath string) (string, error) {
 // List the prefixes and objects under a given workspace and prefix.
 // Currently no paging support - limit to 1000.
 // Currently only support user workspace.
-func (self *Manager) List(cx *SessionContext, workspaceIn string, prefix string, page string) (*ListResult, error) {
-	if (workspaceIn != "") {
+func (self *SimpleManager) List(cx *SessionContext, workspaceIn string, prefix string, page string) (*ListResult, error) {
+	if (workspaceIn != "@user") {
 		return nil, fmt.Errorf("invalid workspace - currently only support personal workspaces")
 	}
 	if (page != "") {
@@ -122,8 +129,8 @@ func (self *Manager) List(cx *SessionContext, workspaceIn string, prefix string,
 
 // UploadUrl generates a presigned upload url
 // TODO - support multipart upload
-func (self *Manager) UploadUrl(cx *SessionContext, workspaceIn string, key string) (string, error) {
-	if (workspaceIn != "") {
+func (self *SimpleManager) UploadUrl(cx *SessionContext, workspaceIn string, key string) (string, error) {
+	if (workspaceIn != "@user") {
 		return "", fmt.Errorf("invalid workspace - currently only support personal workspaces")
 	}
 	workspace := cx.User
@@ -145,8 +152,8 @@ func (self *Manager) UploadUrl(cx *SessionContext, workspaceIn string, key strin
 // DownloadUrl generates a presigned download url
 // Use the range HTTP header to download range of bytes -
 //   https://docs.aws.amazon.com/AmazonS3/latest/dev/GettingObjectsUsingAPIs.html
-func (self *Manager) DownloadUrl(cx *SessionContext, workspaceIn string, key string) (string, error) {
-	if (workspaceIn != "") {
+func (self *SimpleManager) DownloadUrl(cx *SessionContext, workspaceIn string, key string) (string, error) {
+	if (workspaceIn != "@user") {
 		return "", fmt.Errorf("invalid workspace - currently only support personal workspaces")
 	}
 	workspace := cx.User
@@ -168,8 +175,8 @@ func (self *Manager) DownloadUrl(cx *SessionContext, workspaceIn string, key str
 // DownloadUrl generates a presigned download url
 // Use the range HTTP header to download range of bytes -
 //   https://docs.aws.amazon.com/AmazonS3/latest/dev/GettingObjectsUsingAPIs.html
-func (self *Manager) DeleteObject(cx *SessionContext, workspaceIn string, key string) (error) {
-	if (workspaceIn != "") {
+func (self *SimpleManager) DeleteObject(cx *SessionContext, workspaceIn string, key string) (error) {
+	if (workspaceIn != "@user") {
 		return fmt.Errorf("invalid workspace - currently only support personal workspaces")
 	}
 	workspace := cx.User

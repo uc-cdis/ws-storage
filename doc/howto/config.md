@@ -2,7 +2,7 @@
 
 ## JSON config file
 
-JSON config file.
+[This](../../testData/testConfig.json) is an example of a JSON config file.
 
 
 ## AWS SDK

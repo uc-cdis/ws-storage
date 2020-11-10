@@ -14,9 +14,9 @@ import (
 var testFolder = "goTestSuite"
 var testUser = "goTestUser"
 var testSession = NewSessionContext(testUser)
-var singletonMgr *Manager = nil
+var singletonMgr Manager = nil
 
-func getTestMgr(t *testing.T) (*Manager, error) {
+func getTestMgr(t *testing.T) (Manager, error) {
 	if nil != singletonMgr {
 		return singletonMgr, nil
 	}
@@ -87,7 +87,7 @@ func TestMgrList(t *testing.T) {
 		return
 	}
 	cx := NewSessionContext(testUser)
-	info, err := mgr.List(cx, "", "", "")
+	info, err := mgr.List(cx, "@user", "", "")
 	if nil != err {
 		t.Error(fmt.Sprintf("failed to list bucket, got: %v", err))
 		return
@@ -117,7 +117,7 @@ func TestMgrUpDown(t *testing.T) {
 		return
 	}
 	cx := NewSessionContext(testUser)
-	uploadUrl, err := mgr.UploadUrl(cx, "", key)
+	uploadUrl, err := mgr.UploadUrl(cx, "@user", key)
 	if nil != err {
 		t.Error(fmt.Sprintf("failed to generate upload url, got: %v", err))
 		return
@@ -145,7 +145,7 @@ func TestMgrUpDown(t *testing.T) {
 		}
 	}
 	
-	downloadUrl, err := mgr.DownloadUrl(cx, "", key)
+	downloadUrl, err := mgr.DownloadUrl(cx, "@user", key)
 	if nil != err {
 		t.Error(fmt.Sprintf("failed to generate download url, got: %v", err))
 		return
@@ -170,7 +170,7 @@ func TestMgrUpDown(t *testing.T) {
 	}
 
 	// List the test object
-	info, err := mgr.List(cx, "", key, "")
+	info, err := mgr.List(cx, "@user", key, "")
 	if nil != err {
 		t.Error(fmt.Sprintf("failed to list object, got: %v", err))
 		return
@@ -181,14 +181,14 @@ func TestMgrUpDown(t *testing.T) {
 	}
 
 	// Finally - delete the object
-	err = mgr.DeleteObject(cx, "", key)
+	err = mgr.DeleteObject(cx, "@user", key)
 	if nil != err {
 		t.Error(fmt.Sprintf("failed to delete test object, got: %v", err))
 		return
 	}
 
 	// List again
-	info, err = mgr.List(cx, "", key, "")
+	info, err = mgr.List(cx, "@user", key, "")
 	if nil != err {
 		t.Error(fmt.Sprintf("failed to list object, got: %v", err))
 		return

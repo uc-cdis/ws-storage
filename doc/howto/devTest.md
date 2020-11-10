@@ -44,4 +44,13 @@ go test -v ./storage/ -failfast
 gen3 arun env | grep AWS | awk '{ print "export " $0 }'
 ```
 
+# Interacting with the server
 
+```
+curl http://localhost:8000/ws-storage/list/@user/
+curl -H 'REMOTE_USER: goTestUser' http://localhost:8000/ws-storage/list/@user/
+curl -H 'REMOTE_USER: goTestUser' http://localhost:8000/ws-storage/list/@user/goTestSuite/ | jq -r .
+curl -H 'REMOTE_USER: goTestUser' http://localhost:8000/ws-storage/download/@user/goTestSuite/z | jq -r .
+```
+
+Note that the server relies on the API gateway (revproxy) for authentication and authorization.
