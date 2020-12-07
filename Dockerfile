@@ -1,4 +1,4 @@
-FROM golang:1.15 as build-deps
+FROM quay.io/cdis/golang:1.15 as build-deps
 
 WORKDIR /ws-storage
 COPY . /ws-storage
