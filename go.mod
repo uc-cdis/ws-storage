@@ -3,11 +3,9 @@ module github.com/uc-cdis/ws-storage
 go 1.17
 
 require (
-	github.com/aws/aws-sdk-go v1.40.58
+	github.com/aws/aws-sdk-go v1.41.0
 	github.com/prometheus/client_golang v1.11.0
 	github.com/rs/zerolog v1.25.0
-	golang.org/x/net v0.0.0-20210614182718-04defd469f4e // indirect
-	golang.org/x/text v0.3.6 // indirect
 )
 
 require (
