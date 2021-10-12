@@ -4,7 +4,10 @@ ENV CGO_ENABLED=0
 ENV GOOS=linux
 ENV GOARCH=amd64
 
-WORKDIR $GOPATH/src/github.com/uc-cdis/ws-storage/
+# Hopefully someday in the future, this will be updated to provide
+# the consistent Docker images for Go with consistent paths and structure
+# WORKDIR $GOPATH/src/github.com/uc-cdis/ws-storage/
+WORKDIR /ws-storage
 
 COPY go.mod .
 COPY go.sum .
@@ -21,8 +24,11 @@ RUN COMMIT=$(git rev-parse HEAD); \
     '    gitcommit="'"${COMMIT}"'"'\
     '    gitversion="'"${VERSION}"'"'\
     ')' > storage/gitversion.go \
-    && go build -o /ws-storage
+    && go build -o bin/ws-storage
 
 FROM scratch
-COPY --from=build-deps /ws-storage /ws-storage
-CMD ["/ws-storage"]
+COPY --from=build-deps /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+
+# COPY --from=build-deps /ws-storage /ws-storage
+COPY --from=build-deps /ws-storage/bin/ws-storage /ws-storage/bin/ws-storage
+CMD ["/ws-storage/bin/ws-storage"]
