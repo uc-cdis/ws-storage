@@ -1,22 +1,34 @@
-FROM quay.io/cdis/golang:1.15 as build-deps
+FROM quay.io/cdis/golang:1.17-bullseye as build-deps
 
+ENV CGO_ENABLED=0
+ENV GOOS=linux
+ENV GOARCH=amd64
+
+# Hopefully someday in the future, this will be updated to provide
+# the consistent Docker images for Go with consistent paths and structure
+# WORKDIR $GOPATH/src/github.com/uc-cdis/ws-storage/
 WORKDIR /ws-storage
-COPY . /ws-storage
 
-RUN useradd -d /ws-storage -s /bin/bash gen3 && chown -R gen3: /ws-storage
-USER gen3
+COPY go.mod .
+COPY go.sum .
 
-# Populate git version info into the code
-RUN echo "package storage\n\nconst (" > storage/gitversion.go \
-    && COMMIT=`git rev-parse HEAD` && echo "    gitcommit=\"${COMMIT}\"" >> storage/gitversion.go \
-    && VERSION=`git describe --always --tags` && echo "    gitversion=\"${VERSION}\"" >> storage/gitversion.go \
-    && echo ")" >> storage/gitversion.go
-    
-RUN go build -o bin/ws-storage
+RUN go mod download
 
-# Store only the resulting binary in the final image
-# Resulting in significantly smaller docker image size
-#FROM scratch
-#COPY --from=build-deps /ws-storage/ws-storage /ws-storage
+COPY . .
 
+RUN COMMIT=$(git rev-parse HEAD); \
+    VERSION=$(git describe --always --tags); \
+    printf '%s\n' 'package storage'\
+    ''\
+    'const ('\
+    '    gitcommit="'"${COMMIT}"'"'\
+    '    gitversion="'"${VERSION}"'"'\
+    ')' > storage/gitversion.go \
+    && go build -o bin/ws-storage
+
+FROM scratch
+COPY --from=build-deps /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+
+# COPY --from=build-deps /ws-storage /ws-storage
+COPY --from=build-deps /ws-storage/bin/ws-storage /ws-storage/bin/ws-storage
 CMD ["/ws-storage/bin/ws-storage"]
