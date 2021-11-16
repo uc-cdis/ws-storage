@@ -16,15 +16,11 @@ RUN go mod download
 
 COPY . .
 
-RUN COMMIT=$(git rev-parse HEAD); \
-    VERSION=$(git describe --always --tags); \
-    printf '%s\n' 'package storage'\
-    ''\
-    'const ('\
-    '    gitcommit="'"${COMMIT}"'"'\
-    '    gitversion="'"${VERSION}"'"'\
-    ')' > storage/gitversion.go \
-    && go build -o bin/ws-storage
+RUN GITCOMMIT=$(git rev-parse HEAD) \
+    GITVERSION=$(git describe --always --tags) \
+    && go build \
+    -ldflags="-X 'github.com/uc-cdis/ws-storage/storage/version.GitCommit=${GITCOMMIT}' -X 'github.com/uc-cdis/ws-storage/storage/version.GitVersion=${GITVERSION}'" \
+    -o bin/ws-storage
 
 FROM scratch
 COPY --from=build-deps /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
