@@ -6,16 +6,16 @@ import (
 	"os"
 	"strings"
 
-	"github.com/uc-cdis/ws-storage/storage"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/zerolog"
-    "github.com/rs/zerolog/log"
+	"github.com/rs/zerolog/log"
+	"github.com/uc-cdis/ws-storage/storage"
 )
 
 func main() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 
-	configPath := "/ws-storage.json"
+	var configPath string
 	if len(os.Args) > 2 && strings.HasSuffix(os.Args[1], "-config") {
 		configPath = os.Args[2]
 	} else {
@@ -47,7 +47,10 @@ func main() {
 	}
 
 	http.Handle("/metrics", promhttp.Handler())
-	storage.SetupHttpListeners(mgr)
+	err = storage.SetupHttpListeners(mgr)
+	if nil != err {
+		log.Error().Msgf("Failed to setup listeners - got %v", err)
+	}
 	log.Info().Msg("ws-storage launching on port 8000")
 	err = http.ListenAndServe("0.0.0.0:8000", nil)
 	if nil != err {

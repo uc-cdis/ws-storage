@@ -12,58 +12,60 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-
 type SimpleManager struct {
 	config   *Config
 	s3client *s3.S3
 }
 
 type ObjectInfo struct {
-	Workspace     string
-	WorkspaceKey  string
-	SizeBytes     int64
-	LastModified  time.Time
+	Workspace    string
+	WorkspaceKey string
+	SizeBytes    int64
+	LastModified time.Time
 }
 
 type ListResult struct {
-	Workspace  string
-	Prefix     string
-	Objects    []ObjectInfo
-	Prefixes   []string
+	Workspace string
+	Prefix    string
+	Objects   []ObjectInfo
+	Prefixes  []string
 }
 
 type Manager interface {
 	List(cx *SessionContext, workspaceIn string, prefix string, page string) (*ListResult, error)
 	UploadUrl(cx *SessionContext, workspaceIn string, key string) (string, error)
 	DownloadUrl(cx *SessionContext, workspaceIn string, key string) (string, error)
-	DeleteObject(cx *SessionContext, workspaceIn string, key string) (error)
+	DeleteObject(cx *SessionContext, workspaceIn string, key string) error
 }
 
 //---------------------------------------
 
 // NewManager makes a new manager with the given configuration
-func NewManager(config *Config)(mgr Manager, err error) {
+func NewManager(config *Config) (mgr Manager, err error) {
 	sess, err := session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 	})
+	if err != nil {
+		log.Error().Msgf("Failed to create session - got %v", err)
+	}
 
 	// Create S3 service client
 	s3client := s3.New(sess)
 	mgr = &SimpleManager{
-		config: config,
+		config:   config,
 		s3client: s3client,
-	};
+	}
 
 	return mgr, nil
 }
 
 // MakeS3Path internal method validates inputs,
 // and constructs a bucket path from the
-// given bucket prefix, user id, and userPath 
+// given bucket prefix, user id, and userPath
 func MakeS3Path(bucketPrefix, user, userPath string) (string, error) {
 	errorPath := "error-in-ws-storage-make-s3-path"
 	path := ""
-	if bucketPrefix != "" && ! strings.HasSuffix(bucketPrefix, "/") {
+	if bucketPrefix != "" && !strings.HasSuffix(bucketPrefix, "/") {
 		path += bucketPrefix + "/"
 	} else {
 		path = bucketPrefix
@@ -72,7 +74,7 @@ func MakeS3Path(bucketPrefix, user, userPath string) (string, error) {
 		return errorPath, fmt.Errorf("invalid user %v", user)
 	}
 	path += user
-	if ! strings.HasPrefix(userPath, "/") {
+	if !strings.HasPrefix(userPath, "/") {
 		path += "/"
 	}
 	path += userPath
@@ -82,15 +84,14 @@ func MakeS3Path(bucketPrefix, user, userPath string) (string, error) {
 	return path, nil
 }
 
-
 // List the prefixes and objects under a given workspace and prefix.
 // Currently no paging support - limit to 1000.
 // Currently only support user workspace.
 func (self *SimpleManager) List(cx *SessionContext, workspaceIn string, prefix string, page string) (*ListResult, error) {
-	if (workspaceIn != "@user") {
+	if workspaceIn != "@user" {
 		return nil, fmt.Errorf("invalid workspace - currently only support personal workspaces")
 	}
-	if (page != "") {
+	if page != "" {
 		return nil, fmt.Errorf("invalid page - paging not yet implemented")
 	}
 	workspace := cx.User
@@ -109,17 +110,17 @@ func (self *SimpleManager) List(cx *SessionContext, workspaceIn string, prefix s
 
 	result := &ListResult{
 		Workspace: workspace,
-		Prefix: prefix,
-		Objects: make([]ObjectInfo, len(resp.Contents)),
-		Prefixes: make([]string, len(resp.CommonPrefixes)),
+		Prefix:    prefix,
+		Objects:   make([]ObjectInfo, len(resp.Contents)),
+		Prefixes:  make([]string, len(resp.CommonPrefixes)),
 	}
 	for ix, item := range resp.Contents {
-		result.Objects[ix] = ObjectInfo {
-			Workspace: workspace,
+		result.Objects[ix] = ObjectInfo{
+			Workspace:    workspace,
 			WorkspaceKey: strings.Replace(*item.Key, s3prefix, "", 1),
-			SizeBytes: *item.Size,
+			SizeBytes:    *item.Size,
 			LastModified: *item.LastModified,
-		};
+		}
 	}
 	for ix, item := range resp.CommonPrefixes {
 		result.Prefixes[ix] = strings.Replace(*item.Prefix, s3prefix, "", 1)
@@ -130,7 +131,7 @@ func (self *SimpleManager) List(cx *SessionContext, workspaceIn string, prefix s
 // UploadUrl generates a presigned upload url
 // TODO - support multipart upload
 func (self *SimpleManager) UploadUrl(cx *SessionContext, workspaceIn string, key string) (string, error) {
-	if (workspaceIn != "@user") {
+	if workspaceIn != "@user" {
 		return "", fmt.Errorf("invalid workspace - currently only support personal workspaces")
 	}
 	workspace := cx.User
@@ -140,7 +141,7 @@ func (self *SimpleManager) UploadUrl(cx *SessionContext, workspaceIn string, key
 	}
 	req, _ := self.s3client.PutObjectRequest(&s3.PutObjectInput{
 		Bucket: &self.config.Bucket,
-		Key: &s3path,
+		Key:    &s3path,
 	})
 	log.Info().Str("Func", "UploadUrl").
 		Str("Workspace", workspace).
@@ -153,7 +154,7 @@ func (self *SimpleManager) UploadUrl(cx *SessionContext, workspaceIn string, key
 // Use the range HTTP header to download range of bytes -
 //   https://docs.aws.amazon.com/AmazonS3/latest/dev/GettingObjectsUsingAPIs.html
 func (self *SimpleManager) DownloadUrl(cx *SessionContext, workspaceIn string, key string) (string, error) {
-	if (workspaceIn != "@user") {
+	if workspaceIn != "@user" {
 		return "", fmt.Errorf("invalid workspace - currently only support personal workspaces")
 	}
 	workspace := cx.User
@@ -163,7 +164,7 @@ func (self *SimpleManager) DownloadUrl(cx *SessionContext, workspaceIn string, k
 	}
 	req, _ := self.s3client.GetObjectRequest(&s3.GetObjectInput{
 		Bucket: &self.config.Bucket,
-		Key: &s3path,
+		Key:    &s3path,
 	})
 	log.Info().Str("Func", "DownloadUrl").
 		Str("Workspace", workspace).
@@ -175,8 +176,8 @@ func (self *SimpleManager) DownloadUrl(cx *SessionContext, workspaceIn string, k
 // DownloadUrl generates a presigned download url
 // Use the range HTTP header to download range of bytes -
 //   https://docs.aws.amazon.com/AmazonS3/latest/dev/GettingObjectsUsingAPIs.html
-func (self *SimpleManager) DeleteObject(cx *SessionContext, workspaceIn string, key string) (error) {
-	if (workspaceIn != "@user") {
+func (self *SimpleManager) DeleteObject(cx *SessionContext, workspaceIn string, key string) error {
+	if workspaceIn != "@user" {
 		return fmt.Errorf("invalid workspace - currently only support personal workspaces")
 	}
 	workspace := cx.User
@@ -186,7 +187,7 @@ func (self *SimpleManager) DeleteObject(cx *SessionContext, workspaceIn string, 
 	}
 	_, err = self.s3client.DeleteObject(&s3.DeleteObjectInput{
 		Bucket: &self.config.Bucket,
-		Key: &s3path,
+		Key:    &s3path,
 	})
 	log.Info().Str("Func", "DeleteObject").
 		Str("Workspace", workspace).

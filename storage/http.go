@@ -11,16 +11,15 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-
 // Config package-global shared storage config
-var mgrSingleton Manager = nil;
+var mgrSingleton Manager = nil
 
 // SetupHttpListeners setup endpoints with the http engine
-func SetupHttpListeners(mgr Manager) (error) {
+func SetupHttpListeners(mgr Manager) error {
 	if nil != mgrSingleton {
 		return fmt.Errorf("http listeners already configured")
 	}
-	mgrSingleton = mgr;
+	mgrSingleton = mgr
 
 	http.HandleFunc("/ws-storage/", apiHandler)
 	http.HandleFunc("/ws-storage/healthy", healthyHandler)
@@ -29,19 +28,19 @@ func SetupHttpListeners(mgr Manager) (error) {
 }
 
 type ApiRequest struct {
-	Verb       string
-	Workspace  string
-	Key        string
-	Cx         *SessionContext
+	Verb      string
+	Workspace string
+	Key       string
+	Cx        *SessionContext
 }
 
-type ApiResultData interface {}
+type ApiResultData interface{}
 
 type ApiResult struct {
-	Version    int
-	Method     string
-	Result     string
-	Data       ApiResultData
+	Version int
+	Method  string
+	Result  string
+	Data    ApiResultData
 }
 
 // NewApiRequest extracts the api request parameters from
@@ -62,11 +61,11 @@ func NewApiRequest(url *url.URL, method string, remoteUser string) (*ApiRequest,
 	if len(tokens) < 2 {
 		return nil, fmt.Errorf("unable to determine verb and workspace from input path")
 	}
-	result := &ApiRequest {
-		Verb: tokens[0],
+	result := &ApiRequest{
+		Verb:      tokens[0],
 		Workspace: tokens[1],
-		Key: strings.Join(tokens[2:], "/"),
-		Cx: NewSessionContext(remoteUser),
+		Key:       strings.Join(tokens[2:], "/"),
+		Cx:        NewSessionContext(remoteUser),
 	}
 	if result.Verb != "list" && result.Verb != "upload" && result.Verb != "download" {
 		return nil, fmt.Errorf("invalid request verb: %v", result.Verb)
@@ -80,33 +79,33 @@ func NewApiRequest(url *url.URL, method string, remoteUser string) (*ApiRequest,
 	return result, nil
 }
 
-func (self *ApiRequest) HandleApiRequest(mgr Manager) (*ApiResult) {
+func (self *ApiRequest) HandleApiRequest(mgr Manager) *ApiResult {
 	result := &ApiResult{
 		Version: 1,
-		Method: self.Verb,
-		Result: "ok",
-		Data: nil,
+		Method:  self.Verb,
+		Result:  "ok",
+		Data:    nil,
 	}
 	var data ApiResultData = nil
 	var err error = nil
 
 	switch self.Verb {
-	case "list": 
-	data, err = mgr.List(self.Cx, self.Workspace, self.Key, "")
+	case "list":
+		data, err = mgr.List(self.Cx, self.Workspace, self.Key, "")
 	case "upload":
-	data, err = mgr.UploadUrl(self.Cx, self.Workspace, self.Key)
+		data, err = mgr.UploadUrl(self.Cx, self.Workspace, self.Key)
 	case "download":
-	data, err = mgr.DownloadUrl(self.Cx, self.Workspace, self.Key)
+		data, err = mgr.DownloadUrl(self.Cx, self.Workspace, self.Key)
 	case "delete":
-	err = mgr.DeleteObject(self.Cx, self.Workspace, self.Key)
+		err = mgr.DeleteObject(self.Cx, self.Workspace, self.Key)
 	default:
-	err = fmt.Errorf("invalid verb %v", self.Verb)
+		err = fmt.Errorf("invalid verb %v", self.Verb)
 	}
 
 	if nil != err {
 		result.Result = fmt.Sprintf("error - %v", err.Error())
 	} else {
-		result.Data = data;
+		result.Data = data
 	}
 	return result
 }
@@ -123,7 +122,7 @@ func infoHandler(w http.ResponseWriter, r *http.Request) {
 		]
 	}`
 	w.Header().Add("ContentType", "application/json")
-	fmt.Fprintf(w, index)
+	fmt.Fprint(w, index)
 }
 
 func healthyHandler(w http.ResponseWriter, r *http.Request) {
@@ -132,9 +131,8 @@ func healthyHandler(w http.ResponseWriter, r *http.Request) {
 		"status": "awesome"
 	}`
 	w.Header().Add("ContentType", "application/json")
-	fmt.Fprintf(w, index)
+	fmt.Fprint(w, index)
 }
-
 
 func apiHandler(w http.ResponseWriter, r *http.Request) {
 	apiReq, err := NewApiRequest(r.URL, r.Method, r.Header.Get("REMOTE_USER"))
@@ -150,13 +148,16 @@ func apiHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result := apiReq.HandleApiRequest(mgrSingleton)
-	
+
 	bytes, err := json.Marshal(result)
 	if nil != err {
 		sublog.Int("statuscode", 500).Dur("durationms", time.Since(start)).Msg("failed json marshall")
 		http.Error(w, "error marshaling result", 500)
 		return
 	}
-	w.Write(bytes)
+	_, err = w.Write(bytes)
+	if nil != err {
+		sublog.Msgf("Error in writing - got %v", err)
+	}
 	sublog.Int("statuscode", 200).Dur("durationms", time.Since(start)).Send()
 }
